@@ -30,8 +30,9 @@ services:
       CORALOGIX_ENDPOINT_CENTRAL_APPLICATION: ${CORALOGIX_ENDPOINT_CENTRAL_APPLICATION:?set CORALOGIX_ENDPOINT_CENTRAL_APPLICATION}
       CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM: ${CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM:?set CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM}
     ports:
-      # Host port -> unprivileged container port (rootless Podman cannot bind 514/515).
-      # Bind all host interfaces so FortiGate / Endpoint Central can reach this host.
+      # Host port -> unprivileged container port (collector listens on 5514/5515 inside).
+      # FortiGate default host UDP 514 -> container 5514/udp. Bind 0.0.0.0 for remote sources.
+      # Note: publishing host port <1024 may need Docker Desktop / privileged Podman.
       - "0.0.0.0:${FORTIGATE_SYSLOG_UDP_PORT:?set FORTIGATE_SYSLOG_UDP_PORT}:5514/udp"
       - "0.0.0.0:${ENDPOINT_CENTRAL_SYSLOG_TCP_PORT:?set ENDPOINT_CENTRAL_SYSLOG_TCP_PORT}:5515/tcp"
     volumes:

@@ -12,16 +12,19 @@ Word guide only:
 
 ```mermaid
 flowchart LR
-  FGT[FortiGate] -->|UDP RFC5424 :5514| COL[OTel collector<br/>0.0.0.0]
+  FGT[FortiGate] -->|UDP RFC5424 :514| COL[OTel collector<br/>0.0.0.0]
   EC[Endpoint Central] -->|TCP RFC5424 :5515| COL
   COL -->|app/subsystem FortiGate| CX1[Coralogix]
   COL -->|app/subsystem Endpoint Central| CX2[Coralogix]
 ```
 
-Host ports default to `5514`/`5515` in `.env.example`. Compose publishes on
-**`0.0.0.0`** so remote FortiGate / Endpoint Central can reach this host.
-Collector listens on the same unprivileged ports inside the container (works
-with rootless **Podman Desktop**; privileged 514/515 are not used).
+Host ports default to **UDP `514`** (FortiGate) and **TCP `5515`** (Endpoint
+Central) in `.env.example`. Compose publishes on **`0.0.0.0`** so remote
+sources can reach this host.
+
+Inside the container the collector still listens on unprivileged **5514/udp**
+and **5515/tcp**. Compose maps `host:514 → container:5514/udp` so FortiGate can
+use the standard syslog port without binding privileged ports inside the image.
 
 ## Requirements
 
@@ -29,10 +32,10 @@ with rootless **Podman Desktop**; privileged 514/515 are not used).
 - A Coralogix Send-Your-Data API key.
 - Your Coralogix domain (for example `ap3.coralogix.com`).
 - Network path from each source to this host:
-  - FortiGate: UDP to `FORTIGATE_SYSLOG_UDP_PORT` (default `5514`).
+  - FortiGate: UDP to `FORTIGATE_SYSLOG_UDP_PORT` (default `514`).
   - Endpoint Central: TCP to `ENDPOINT_CENTRAL_SYSLOG_TCP_PORT` (default `5515`).
 - Endpoint Central **11.4.2524.01** or later (Syslog integration).
-- FortiGate remote Syslog format **RFC5424**, transport **UDP**.
+- FortiGate remote Syslog format **RFC5424**, transport **UDP**, port **514**.
 
 ## Files
 
@@ -78,7 +81,7 @@ Set:
 - `CORALOGIX_KEY_FILE` (absolute host path)
 - `CORALOGIX_FORTIGATE_APPLICATION` / `CORALOGIX_FORTIGATE_SUBSYSTEM`
 - `CORALOGIX_ENDPOINT_CENTRAL_APPLICATION` / `CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM`
-- ports, if the defaults are already in use
+- ports, if the defaults are already in use (`FORTIGATE_SYSLOG_UDP_PORT=514` by default)
 
 Do not put the key value in `.env`.
 
@@ -91,9 +94,12 @@ docker compose --env-file .env ps
 docker compose --env-file .env logs -f syslog-collector
 ```
 
-`docker compose config` must show host bind `0.0.0.0` with UDP `5514` (or your
-FortiGate port) and TCP `5515` (or your Endpoint Central port). It must not
-print the API key.
+`docker compose config` must show host bind `0.0.0.0:514→5514/udp` (or your
+FortiGate port) and `0.0.0.0:5515→5515/tcp` (or your Endpoint Central port).
+It must not print the API key.
+
+Publishing host UDP `514` may require Docker Desktop or a privileged Podman
+setup; rootless Podman often cannot bind ports below 1024.
 
 ## 4. Open host firewall ports
 
@@ -104,7 +110,7 @@ replay.
 ### Linux (ufw)
 
 ```sh
-sudo ufw allow 5514/udp comment 'FortiGate syslog'
+sudo ufw allow 514/udp comment 'FortiGate syslog'
 sudo ufw allow 5515/tcp comment 'Endpoint Central syslog'
 sudo ufw status
 ```
@@ -112,7 +118,7 @@ sudo ufw status
 ### Linux (firewalld)
 
 ```sh
-sudo firewall-cmd --permanent --add-port=5514/udp
+sudo firewall-cmd --permanent --add-port=514/udp
 sudo firewall-cmd --permanent --add-port=5515/tcp
 sudo firewall-cmd --reload
 sudo firewall-cmd --list-ports
@@ -122,7 +128,7 @@ sudo firewall-cmd --list-ports
 
 ```sh
 sudo tee /etc/pf.anchors/coralogix-syslog >/dev/null <<'EOF'
-pass in proto udp from any to any port 5514
+pass in proto udp from any to any port 514
 pass in proto tcp from any to any port 5515
 EOF
 echo 'load anchor "coralogix-syslog" from "/etc/pf.anchors/coralogix-syslog"' | sudo tee -a /etc/pf.conf
@@ -141,15 +147,15 @@ in the Word guide.
 1. Start → search **Windows Defender Firewall with Advanced Security** → open it.
 2. Select **Inbound Rules** → **New Rule…**.
 3. Rule Type → **Port** → Next.
-4. **UDP** → Specific local ports → `5514` → Next.
+4. **UDP** → Specific local ports → `514` → Next.
 5. **Allow the connection** → Next → enable Domain/Private/Public as needed → Next.
-6. Name: `FortiGate syslog UDP 5514` → Finish.
+6. Name: `FortiGate syslog UDP 514` → Finish.
 7. Repeat New Rule for **TCP** port `5515`, name `Endpoint Central syslog TCP 5515`.
 
 ### Windows (elevated Command Prompt)
 
 ```bat
-netsh advfirewall firewall add rule name="FortiGate syslog UDP 5514" dir=in action=allow protocol=UDP localport=5514
+netsh advfirewall firewall add rule name="FortiGate syslog UDP 514" dir=in action=allow protocol=UDP localport=514
 netsh advfirewall firewall add rule name="Endpoint Central syslog TCP 5515" dir=in action=allow protocol=TCP localport=5515
 ```
 
@@ -157,7 +163,7 @@ Also allow the same ports on any cloud NSG / security group in front of this hos
 
 ## 5. Configure FortiGate
 
-Do this **after** Compose is up and the firewall allows UDP `5514`.
+Do this **after** Compose is up and the firewall allows UDP `514`.
 
 Point FortiGate at this host’s reachable IP (the Windows/Linux host running
 Compose), not `127.0.0.1`.
@@ -170,10 +176,10 @@ Compose), not `127.0.0.1`.
 4. Enter the Syslog collector IP (this Compose host).
 5. **Apply**.
 
-GUI sets the server IP; default transport is often UDP/514 and default format.
-This template needs **UDP port `5514`** and **RFC5424** — finish with CLI.
+GUI sets the server IP; FortiGate often defaults to UDP/514. Confirm format
+**RFC5424** with CLI (GUI alone may leave the default format).
 
-### CLI (required for port + RFC5424)
+### CLI (required for RFC5424; port 514 matches this template)
 
 Match syntax to your FortiOS version. Multi-VDOM: run in the global VDOM.
 
@@ -182,7 +188,7 @@ config log syslogd setting
     set status enable
     set server "<COMPOSE_HOST_IP>"
     set mode udp
-    set port 5514
+    set port 514
     set format rfc5424
 end
 ```
@@ -254,12 +260,12 @@ required if the collector is down.
 |---|---|---|
 | Compose fails on `:?` | Missing `.env` value | Fill every required variable |
 | `/bin/sh` not found (Podman/Docker) | Distroless image + shell entrypoint | Use default `/otelcol-contrib` + `${file:/run/secrets/coralogix_key}` |
-| `bind: permission denied` on 514/515 | Rootless Podman cannot bind ports &lt; 1024 | Listeners use 5514/5515 (already in this template) |
+| `bind: permission denied` on host 514 | Rootless Podman / no privilege for ports &lt; 1024 | Use Docker Desktop, or set `FORTIGATE_SYSLOG_UDP_PORT` to an unprivileged port (e.g. 5514) |
 | Permission denied on secret | Key file unreadable | `chmod 600` the key file; check path |
 | Auth/export errors with `${file:…}` | Key file is JSON export or has newlines | One-line Send-Your-Data value only (`apiKey.keyValue`) |
 | `authorization` non-printable ASCII | Whole JSON mounted as private_key | Strip to one-line key |
 | Connection refused (Endpoint Central) | TCP port/firewall | Confirm host TCP `5515` inbound allow |
-| No FortiGate records | UDP blocked, wrong IP, or not RFC5424 | Confirm `0.0.0.0:5514/udp`, CLI `format rfc5424`, firewall |
+| No FortiGate records | UDP blocked, wrong IP, or not RFC5424 | Confirm `0.0.0.0:514→5514/udp`, CLI `format rfc5424`, firewall UDP 514 |
 | RFC5424 parse errors | Source not RFC5424 | Fix source format; do not add OTel operators |
 | Coralogix 401/403 | Wrong key or domain | Check Send-Your-Data key and region domain |
 | Mixed sources in one app | Shared application/subsystem | Use distinct `.env` names per source |
@@ -278,5 +284,5 @@ required if the collector is down.
 - Coralogix: OpenTelemetry using Docker
 - OpenTelemetry Collector Contrib Syslog receiver (`protocol: rfc5424`, TCP/UDP)
 - ManageEngine Endpoint Central Syslog integration (RFC5424, TCP or UDP, 11.4.2524.01+)
-- FortiOS syslogd: `mode udp`, format `rfc5424`
+- FortiOS syslogd: `mode udp`, format `rfc5424`, port `514`
 - Fortinet community: Technical Tip — configure syslog on FortiGate

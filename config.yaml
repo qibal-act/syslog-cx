@@ -1,5 +1,6 @@
 receivers:
-  # Unprivileged ports so rootless Podman Desktop can bind (514/515 need CAP_NET_BIND_SERVICE).
+  # FortiGate: container listens on 5514/udp; Compose maps host UDP 514 -> 5514.
+  # Endpoint Central: host TCP 5515 -> container 5515. Unprivileged inside the image.
   syslog/fortigate:
     udp:
       listen_address: "0.0.0.0:5514"
