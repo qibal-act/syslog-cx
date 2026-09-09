@@ -1,0 +1,39 @@
+receivers:
+  # Unprivileged ports so rootless Podman Desktop can bind (514/515 need CAP_NET_BIND_SERVICE).
+  syslog/fortigate:
+    udp:
+      listen_address: "0.0.0.0:5514"
+      one_log_per_packet: true
+    protocol: rfc5424
+
+  syslog/endpoint-central:
+    tcp:
+      listen_address: "0.0.0.0:5515"
+    protocol: rfc5424
+
+exporters:
+  # private_key from Docker/Podman secret file (distroless image has no /bin/sh).
+  # Key file must be one line (Send-Your-Data API key only); avoid trailing junk.
+  coralogix/fortigate:
+    domain: ${env:CORALOGIX_DOMAIN}
+    private_key: ${file:/run/secrets/coralogix_key}
+    application_name: ${env:CORALOGIX_FORTIGATE_APPLICATION}
+    subsystem_name: ${env:CORALOGIX_FORTIGATE_SUBSYSTEM}
+    timeout: 30s
+
+  coralogix/endpoint-central:
+    domain: ${env:CORALOGIX_DOMAIN}
+    private_key: ${file:/run/secrets/coralogix_key}
+    application_name: ${env:CORALOGIX_ENDPOINT_CENTRAL_APPLICATION}
+    subsystem_name: ${env:CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM}
+    timeout: 30s
+
+service:
+  pipelines:
+    logs/fortigate:
+      receivers: [syslog/fortigate]
+      exporters: [coralogix/fortigate]
+
+    logs/endpoint-central:
+      receivers: [syslog/endpoint-central]
+      exporters: [coralogix/endpoint-central]

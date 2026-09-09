@@ -1,0 +1,46 @@
+# Syslog -> Coralogix (OpenTelemetry Collector).
+#
+# Two isolated listeners. No custom OTel parsing, operators, or processors.
+# Coralogix receives RFC5424 records and does vendor parsing.
+#
+#   FortiGate UDP  ${FORTIGATE_SYSLOG_UDP_PORT}  -> app/subsystem from .env
+#   Endpoint Central TCP ${ENDPOINT_CENTRAL_SYSLOG_TCP_PORT} -> app/subsystem from .env
+#
+# Credentials are NEVER in this file or in the image. The Coralogix key is a
+# read-only Docker/Podman secret via CORALOGIX_KEY_FILE in .env.
+# The contrib image is distroless (no /bin/sh) — key is read via ${file:...}
+# in config.yaml, not a shell wrapper.
+#
+#   cp .env.example .env      # edit the values
+#   docker compose --env-file .env up -d
+#   # Podman Desktop: same command (compose talks to the Podman engine)
+#
+name: syslog-coralogix
+
+services:
+  syslog-collector:
+    image: otel/opentelemetry-collector-contrib:0.149.0
+    restart: unless-stopped
+    cpus: "0.50"
+    mem_limit: 512m
+    environment:
+      CORALOGIX_DOMAIN: ${CORALOGIX_DOMAIN:?set CORALOGIX_DOMAIN}
+      CORALOGIX_FORTIGATE_APPLICATION: ${CORALOGIX_FORTIGATE_APPLICATION:?set CORALOGIX_FORTIGATE_APPLICATION}
+      CORALOGIX_FORTIGATE_SUBSYSTEM: ${CORALOGIX_FORTIGATE_SUBSYSTEM:?set CORALOGIX_FORTIGATE_SUBSYSTEM}
+      CORALOGIX_ENDPOINT_CENTRAL_APPLICATION: ${CORALOGIX_ENDPOINT_CENTRAL_APPLICATION:?set CORALOGIX_ENDPOINT_CENTRAL_APPLICATION}
+      CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM: ${CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM:?set CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM}
+    ports:
+      # Host port -> unprivileged container port (rootless Podman cannot bind 514/515).
+      # Bind all host interfaces so FortiGate / Endpoint Central can reach this host.
+      - "0.0.0.0:${FORTIGATE_SYSLOG_UDP_PORT:?set FORTIGATE_SYSLOG_UDP_PORT}:5514/udp"
+      - "0.0.0.0:${ENDPOINT_CENTRAL_SYSLOG_TCP_PORT:?set ENDPOINT_CENTRAL_SYSLOG_TCP_PORT}:5515/tcp"
+    volumes:
+      - ./config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    secrets:
+      - coralogix_key
+    # Distroless image: default ENTRYPOINT is /otelcol-contrib (no shell).
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+
+secrets:
+  coralogix_key:
+    file: ${CORALOGIX_KEY_FILE:?set CORALOGIX_KEY_FILE to the host Coralogix key file path}
