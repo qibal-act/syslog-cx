@@ -1,16 +1,26 @@
 receivers:
-  # FortiGate: container listens on 5514/udp; Compose maps host UDP 514 -> 5514.
-  # Endpoint Central: host TCP 5515 -> container 5515. Unprivileged inside the image.
+  # FortiGate 400F: UDP + RFC5424 (set mode udp, format rfc5424 on the appliance).
   syslog/fortigate:
     udp:
       listen_address: "0.0.0.0:5514"
       one_log_per_packet: true
     protocol: rfc5424
 
-  syslog/endpoint-central:
-    tcp:
+  # Ruckus SmartZone AP: UDP + RFC3164 (BSD). SmartZone supports TCP or UDP;
+  # UDP is the default here. No custom operators — Coralogix parses.
+  syslog/ruckus:
+    udp:
       listen_address: "0.0.0.0:5515"
-    protocol: rfc5424
+      one_log_per_packet: true
+    protocol: rfc3164
+
+  # MikroTik RouterOS: UDP + RFC3164 (BSD). RouterOS remote syslog is
+  # UDP-only for the syslog format (TCP/TLS apply to CEF only).
+  syslog/mikrotik:
+    udp:
+      listen_address: "0.0.0.0:5516"
+      one_log_per_packet: true
+    protocol: rfc3164
 
 exporters:
   # private_key from Docker/Podman secret file (distroless image has no /bin/sh).
@@ -22,11 +32,18 @@ exporters:
     subsystem_name: ${env:CORALOGIX_FORTIGATE_SUBSYSTEM}
     timeout: 30s
 
-  coralogix/endpoint-central:
+  coralogix/ruckus:
     domain: ${env:CORALOGIX_DOMAIN}
     private_key: ${file:/run/secrets/coralogix_key}
-    application_name: ${env:CORALOGIX_ENDPOINT_CENTRAL_APPLICATION}
-    subsystem_name: ${env:CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM}
+    application_name: ${env:CORALOGIX_RUCKUS_APPLICATION}
+    subsystem_name: ${env:CORALOGIX_RUCKUS_SUBSYSTEM}
+    timeout: 30s
+
+  coralogix/mikrotik:
+    domain: ${env:CORALOGIX_DOMAIN}
+    private_key: ${file:/run/secrets/coralogix_key}
+    application_name: ${env:CORALOGIX_MIKROTIK_APPLICATION}
+    subsystem_name: ${env:CORALOGIX_MIKROTIK_SUBSYSTEM}
     timeout: 30s
 
 service:
@@ -35,6 +52,10 @@ service:
       receivers: [syslog/fortigate]
       exporters: [coralogix/fortigate]
 
-    logs/endpoint-central:
-      receivers: [syslog/endpoint-central]
-      exporters: [coralogix/endpoint-central]
+    logs/ruckus:
+      receivers: [syslog/ruckus]
+      exporters: [coralogix/ruckus]
+
+    logs/mikrotik:
+      receivers: [syslog/mikrotik]
+      exporters: [coralogix/mikrotik]

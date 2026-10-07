@@ -1,19 +1,12 @@
 # Secrets — never commit
 .env
-.env.local
-.env.*.local
 *.key
 *coralogix-key*
 *coralogix_key*
-.secrets/
-secrets/
-
-# Keep the template
-!.env.example
 
 # Runtime / local test output
 runtime/
 out/
 *.ndjson
-*.log
-.DS_Store
+captures/
+*.pcap

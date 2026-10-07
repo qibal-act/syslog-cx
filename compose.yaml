@@ -1,10 +1,11 @@
 # Syslog -> Coralogix (OpenTelemetry Collector).
 #
-# Two isolated listeners. No custom OTel parsing, operators, or processors.
-# Coralogix receives RFC5424 records and does vendor parsing.
+# Three isolated listeners. No custom OTel parsing, operators, or processors.
+# Coralogix receives the records and does vendor parsing.
 #
-#   FortiGate UDP  ${FORTIGATE_SYSLOG_UDP_PORT}  -> app/subsystem from .env
-#   Endpoint Central TCP ${ENDPOINT_CENTRAL_SYSLOG_TCP_PORT} -> app/subsystem from .env
+#   FortiGate 400F  UDP  ${FORTIGATE_SYSLOG_UDP_PORT}  -> app/subsystem from .env (RFC5424)
+#   Ruckus SZ AP    UDP  ${RUCKUS_SYSLOG_UDP_PORT}     -> app/subsystem from .env (RFC3164)
+#   MikroTik        UDP  ${MIKROTIK_SYSLOG_UDP_PORT}   -> app/subsystem from .env (RFC3164)
 #
 # Credentials are NEVER in this file or in the image. The Coralogix key is a
 # read-only Docker/Podman secret via CORALOGIX_KEY_FILE in .env.
@@ -15,7 +16,7 @@
 #   docker compose --env-file .env up -d
 #   # Podman Desktop: same command (compose talks to the Podman engine)
 #
-name: syslog-coralogix
+name: syslog-coralogix-tap
 
 services:
   syslog-collector:
@@ -27,14 +28,16 @@ services:
       CORALOGIX_DOMAIN: ${CORALOGIX_DOMAIN:?set CORALOGIX_DOMAIN}
       CORALOGIX_FORTIGATE_APPLICATION: ${CORALOGIX_FORTIGATE_APPLICATION:?set CORALOGIX_FORTIGATE_APPLICATION}
       CORALOGIX_FORTIGATE_SUBSYSTEM: ${CORALOGIX_FORTIGATE_SUBSYSTEM:?set CORALOGIX_FORTIGATE_SUBSYSTEM}
-      CORALOGIX_ENDPOINT_CENTRAL_APPLICATION: ${CORALOGIX_ENDPOINT_CENTRAL_APPLICATION:?set CORALOGIX_ENDPOINT_CENTRAL_APPLICATION}
-      CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM: ${CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM:?set CORALOGIX_ENDPOINT_CENTRAL_SUBSYSTEM}
+      CORALOGIX_RUCKUS_APPLICATION: ${CORALOGIX_RUCKUS_APPLICATION:?set CORALOGIX_RUCKUS_APPLICATION}
+      CORALOGIX_RUCKUS_SUBSYSTEM: ${CORALOGIX_RUCKUS_SUBSYSTEM:?set CORALOGIX_RUCKUS_SUBSYSTEM}
+      CORALOGIX_MIKROTIK_APPLICATION: ${CORALOGIX_MIKROTIK_APPLICATION:?set CORALOGIX_MIKROTIK_APPLICATION}
+      CORALOGIX_MIKROTIK_SUBSYSTEM: ${CORALOGIX_MIKROTIK_SUBSYSTEM:?set CORALOGIX_MIKROTIK_SUBSYSTEM}
     ports:
-      # Host port -> unprivileged container port (collector listens on 5514/5515 inside).
-      # FortiGate default host UDP 514 -> container 5514/udp. Bind 0.0.0.0 for remote sources.
-      # Note: publishing host port <1024 may need Docker Desktop / privileged Podman.
+      # Host ports are unprivileged by default so rootless Podman / Docker
+      # Desktop work without extra privileges. Point appliances at these ports.
       - "0.0.0.0:${FORTIGATE_SYSLOG_UDP_PORT:?set FORTIGATE_SYSLOG_UDP_PORT}:5514/udp"
-      - "0.0.0.0:${ENDPOINT_CENTRAL_SYSLOG_TCP_PORT:?set ENDPOINT_CENTRAL_SYSLOG_TCP_PORT}:5515/tcp"
+      - "0.0.0.0:${RUCKUS_SYSLOG_UDP_PORT:?set RUCKUS_SYSLOG_UDP_PORT}:5515/udp"
+      - "0.0.0.0:${MIKROTIK_SYSLOG_UDP_PORT:?set MIKROTIK_SYSLOG_UDP_PORT}:5516/udp"
     volumes:
       - ./config.yaml:/etc/otelcol-contrib/config.yaml:ro
     secrets:
