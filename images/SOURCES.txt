@@ -1,0 +1,5 @@
+# Image sources — one line per file under images/
+# fortigate/  -> official Fortinet community KB technical tip
+# ruckus/     -> official Ruckus SmartZoneOS 5 demo videos (YouTube), frames extracted with ffmpeg
+# mikrotik/   -> kaspars.net RouterOS remote logging guide (WebFig, RouterOS 7.18.2)
+# See each subdirectory's SOURCES.txt for exact URLs.

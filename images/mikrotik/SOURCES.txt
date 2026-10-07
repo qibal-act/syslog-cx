@@ -1,0 +1,4 @@
+# Image sources — screenshots from Kaspars Dambis, Remote Logging for Mikrotik RouterOS (RouterOS v7.18.2 WebFig)
+mt-01-remote-action.png	83463B	https://kaspars.net/wp-content/uploads/2025/03/routeros-remote-logging-action-settings.png | page https://kaspars.net/blog/remote-logging-mikrotik-routeros
+mt-02-logging-rules.png	70777B	https://kaspars.net/wp-content/uploads/2025/03/routeros-logging-rules.png | page https://kaspars.net/blog/remote-logging-mikrotik-routeros
+mt-03-rule-dialog.png	68437B	https://kaspars.net/wp-content/uploads/2025/03/routeros-logging-rule-action.png | page https://kaspars.net/blog/remote-logging-mikrotik-routeros
