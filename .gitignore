@@ -4,6 +4,9 @@
 *coralogix-key*
 *coralogix_key*
 
+# Customer deliverables — PDF only on this branch
+*.docx
+
 # Runtime / local test output
 runtime/
 out/
