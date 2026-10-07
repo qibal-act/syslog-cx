@@ -1,4 +1,0 @@
-# Image sources — frames extracted from official Ruckus YouTube demos (SmartZoneOS 5)
-rk-sz-02-zone-send-logs.png	120s	https://www.youtube.com/watch?v=VGU6MUTFUWI (SmartZoneOS 5 Demonstration: Syslog Export Enhancements) — Configure Group > Syslog Options, Send Logs
-rk-sz-05-protocol-dropdown.png	130s	https://www.youtube.com/watch?v=VGU6MUTFUWI — Configure Group > Syslog Options, Protocol fields highlighted
-rk-sz-11-controller-syslog-fields.png	520s	https://www.youtube.com/watch?v=KIJ5h6rV098 (SmartZoneOS5 System Configuration) — System > General Settings > Syslog tab

@@ -6,6 +6,7 @@
 
 # Customer deliverables — PDF only on this branch
 *.docx
+images/
 
 # Runtime / local test output
 runtime/

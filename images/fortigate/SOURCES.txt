@@ -1,5 +1,0 @@
-# Image sources — official Fortinet community KB technical tip (screenshots of FortiOS GUI/CLI)
-fgt-kb-01-log-settings-menu.png	114326B	https://uploads-us-west-2.insided.com/fortinet-en/attachment/50651i774BE10952DC4721.png | page https://community.fortinet.com/fortigate-3/technical-tip-how-to-configure-syslog-on-fortigate-177925
-fgt-kb-02-global-settings-syslog.png	48430B	https://fortinet.grazitti.com/fortinet-kb-production/api/uploads/489f1a4b.png | page https://community.fortinet.com/fortigate-3/technical-tip-how-to-configure-syslog-on-fortigate-177925
-fgt-kb-03-syslog-enabled-ip.png	110433B	https://uploads-us-west-2.insided.com/fortinet-en/attachment/50652i68D9963DC602C6F2.png | page https://community.fortinet.com/fortigate-3/technical-tip-how-to-configure-syslog-on-fortigate-177925
-fgt-kb-04-cli.png	28140B	https://uploads-us-west-2.insided.com/fortinet-en/attachment/50653i5F04326AAD266A8A.png | page https://community.fortinet.com/fortigate-3/technical-tip-how-to-configure-syslog-on-fortigate-177925
