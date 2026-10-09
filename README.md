@@ -6,6 +6,13 @@ its own Coralogix application/subsystem.
 
 No custom OTel parsing, operators, or processors. Coralogix parses the records.
 
+## Clone the repository
+
+```sh
+git clone --branch aj --single-branch git@github.com:qibal-act/syslog-cx.git
+cd syslog-cx
+```
+
 Screenshots for Windows Firewall, FortiGate, and Endpoint Central are in the
 Word guide only:
 `Syslog-FortiGate-EndpointCentral-Coralogix-Docker-Compose-Guide.docx`.
@@ -48,12 +55,13 @@ use the standard syslog port without binding privileged ports inside the image.
 
 ## Suggested order
 
-1. Prepare key + `.env`
-2. Start Compose
-3. Open host firewall (required for remote sources on Windows)
-4. Configure FortiGate
-5. Configure Endpoint Central
-6. Verify in Coralogix
+1. Clone the `aj` branch
+2. Prepare key + `.env`
+3. Start Compose
+4. Open host firewall (required for remote sources on Windows)
+5. Configure FortiGate
+6. Configure Endpoint Central
+7. Verify in Coralogix
 
 ## 1. Prepare the key
 
