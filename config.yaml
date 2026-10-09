@@ -1,10 +1,19 @@
 receivers:
-  # FortiGate 400F: UDP + RFC5424 (set mode udp, format rfc5424 on the appliance).
+  # FortiGate 400F: FortiOS "default" syslog (key=value) over TCP (mode reliable).
+  #
+  # Two things to get right on this receiver:
+  #   1. protocol: none  -> the FortiOS default format is neither RFC3164 nor RFC5424,
+  #      so do NOT syslog-parse it here. The raw line is kept as-is (a leading <PRI>
+  #      is still decoded) and Coralogix does the Fortinet parsing server-side.
+  #      Requires collector >= 0.155 (0.149 rejects `none`).
+  #   2. enable_octet_counting: true -> FortiOS reliable/TCP frames messages with
+  #      RFC6587 octet counting ("<len> <PRI>msg"), which is OFF by default.
   syslog/fortigate:
-    udp:
+    tcp:
       listen_address: "0.0.0.0:5514"
-      one_log_per_packet: true
-    protocol: rfc5424
+    protocol: none
+    enable_octet_counting: true
+    max_octets: 65536
 
   # Ruckus SmartZone AP: UDP + RFC3164 (BSD). SmartZone supports TCP or UDP;
   # UDP is the default here. No custom operators — Coralogix parses.
@@ -21,6 +30,27 @@ receivers:
       listen_address: "0.0.0.0:5516"
       one_log_per_packet: true
     protocol: rfc3164
+    # RFC3164 carries no timezone. The router's clock is on WIB (UTC+7); the
+    # default `location: UTC` would stamp every record +7h in the future and
+    # Coralogix rejects future-dated records at ingress.
+    location: Asia/Jakarta
+
+processors:
+  # Safety valve: shed load before the kernel OOM-kills the container
+  # (this deployment previously died every ~140s at the 512m cgroup limit).
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 1100
+    spike_limit_mib: 300
+  # Required at this ingest rate (~900 logs/s of FortiGate traffic logs):
+  # without batching each record is exported individually and the export
+  # queue grows without bound in memory.
+  batch:
+    # ~1000 logs/s of ~1 KB records: keep requests small enough to complete
+    # inside the exporter timeout, large enough to stay efficient.
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+    timeout: 2s
 
 exporters:
   # private_key from Docker/Podman secret file (distroless image has no /bin/sh).
@@ -30,32 +60,62 @@ exporters:
     private_key: ${file:/run/secrets/coralogix_key}
     application_name: ${env:CORALOGIX_FORTIGATE_APPLICATION}
     subsystem_name: ${env:CORALOGIX_FORTIGATE_SUBSYSTEM}
-    timeout: 30s
+    timeout: 60s
+    sending_queue:
+      enabled: true
+      num_consumers: 20
+      queue_size: 2000
+    retry_on_failure:
+      enabled: true
+      initial_interval: 2s
+      max_interval: 30s
+      max_elapsed_time: 120s
 
   coralogix/ruckus:
     domain: ${env:CORALOGIX_DOMAIN}
     private_key: ${file:/run/secrets/coralogix_key}
     application_name: ${env:CORALOGIX_RUCKUS_APPLICATION}
     subsystem_name: ${env:CORALOGIX_RUCKUS_SUBSYSTEM}
-    timeout: 30s
+    timeout: 60s
+    sending_queue:
+      enabled: true
+      num_consumers: 20
+      queue_size: 2000
+    retry_on_failure:
+      enabled: true
+      initial_interval: 2s
+      max_interval: 30s
+      max_elapsed_time: 120s
 
   coralogix/mikrotik:
     domain: ${env:CORALOGIX_DOMAIN}
     private_key: ${file:/run/secrets/coralogix_key}
     application_name: ${env:CORALOGIX_MIKROTIK_APPLICATION}
     subsystem_name: ${env:CORALOGIX_MIKROTIK_SUBSYSTEM}
-    timeout: 30s
+    timeout: 60s
+    sending_queue:
+      enabled: true
+      num_consumers: 20
+      queue_size: 2000
+    retry_on_failure:
+      enabled: true
+      initial_interval: 2s
+      max_interval: 30s
+      max_elapsed_time: 120s
 
 service:
   pipelines:
     logs/fortigate:
       receivers: [syslog/fortigate]
+      processors: [memory_limiter, batch]
       exporters: [coralogix/fortigate]
 
     logs/ruckus:
       receivers: [syslog/ruckus]
+      processors: [memory_limiter, batch]
       exporters: [coralogix/ruckus]
 
     logs/mikrotik:
       receivers: [syslog/mikrotik]
+      processors: [memory_limiter, batch]
       exporters: [coralogix/mikrotik]

@@ -1,11 +1,16 @@
 # Syslog -> Coralogix (OpenTelemetry Collector).
 #
-# Three isolated listeners. No custom OTel parsing, operators, or processors.
-# Coralogix receives the records and does vendor parsing.
+# Three isolated listeners. No custom parsing or operators — Coralogix receives
+# the records and does vendor parsing. A memory_limiter and a batch processor are
+# the only processors, and they exist purely for throughput safety at firewall
+# volume (see README).
 #
-#   FortiGate 400F  UDP  ${FORTIGATE_SYSLOG_UDP_PORT}  -> app/subsystem from .env (RFC5424)
+#   FortiGate 400F  TCP  ${FORTIGATE_SYSLOG_PORT}      -> app/subsystem from .env (FortiOS default format)
 #   Ruckus SZ AP    UDP  ${RUCKUS_SYSLOG_UDP_PORT}     -> app/subsystem from .env (RFC3164)
 #   MikroTik        UDP  ${MIKROTIK_SYSLOG_UDP_PORT}   -> app/subsystem from .env (RFC3164)
+#
+# Requires collector >= 0.155: the FortiGate receiver uses `protocol: none`,
+# which older releases reject.
 #
 # Credentials are NEVER in this file or in the image. The Coralogix key is a
 # read-only Docker/Podman secret via CORALOGIX_KEY_FILE in .env.
@@ -20,10 +25,12 @@ name: syslog-coralogix-tap
 
 services:
   syslog-collector:
-    image: otel/opentelemetry-collector-contrib:0.149.0
+    image: otel/opentelemetry-collector-contrib:0.161.0
     restart: unless-stopped
-    cpus: "0.50"
-    mem_limit: 512m
+    # Sized for a firewall logging full traffic volume (~1,000 records/s).
+    # The 512m / 0.5-cpu defaults OOM-kill the collector every ~2 minutes there.
+    cpus: "2.0"
+    mem_limit: 1536m
     environment:
       CORALOGIX_DOMAIN: ${CORALOGIX_DOMAIN:?set CORALOGIX_DOMAIN}
       CORALOGIX_FORTIGATE_APPLICATION: ${CORALOGIX_FORTIGATE_APPLICATION:?set CORALOGIX_FORTIGATE_APPLICATION}
@@ -35,7 +42,9 @@ services:
     ports:
       # Host ports are unprivileged by default so rootless Podman / Docker
       # Desktop work without extra privileges. Point appliances at these ports.
-      - "0.0.0.0:${FORTIGATE_SYSLOG_UDP_PORT:?set FORTIGATE_SYSLOG_UDP_PORT}:5514/udp"
+      # FortiGate publishes 514/tcp (standard syslog TCP); Ruckus and MikroTik
+      # use the unprivileged 5515 / 5516 UDP ports.
+      - "0.0.0.0:${FORTIGATE_SYSLOG_PORT:?set FORTIGATE_SYSLOG_PORT}:5514/tcp"
       - "0.0.0.0:${RUCKUS_SYSLOG_UDP_PORT:?set RUCKUS_SYSLOG_UDP_PORT}:5515/udp"
       - "0.0.0.0:${MIKROTIK_SYSLOG_UDP_PORT:?set MIKROTIK_SYSLOG_UDP_PORT}:5516/udp"
     volumes:
