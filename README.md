@@ -6,6 +6,13 @@ application/subsystem.
 
 No custom OTel parsing, operators, or processors. Coralogix parses the records.
 
+## Clone the repository
+
+```sh
+git clone --branch tap --single-branch git@github.com:qibal-act/syslog-cx.git
+cd syslog-cx
+```
+
 ```mermaid
 flowchart LR
   FGT[FortiGate 400F] -->|UDP RFC5424 :5514| COL[OTel collector<br/>0.0.0.0]
@@ -43,13 +50,14 @@ Compose publishes on **`0.0.0.0`** so remote sources can reach this host.
 
 ## Suggested order
 
-1. Prepare key + `.env`
-2. Start Compose
-3. Open host firewall (§4)
-4. Configure FortiGate 400F (§5)
-5. Configure Ruckus SmartZone (§6)
-6. Configure MikroTik (§7)
-7. Verify in Coralogix (§8)
+1. Clone the `tap` branch
+2. Prepare key + `.env`
+3. Start Compose
+4. Open host firewall (§4)
+5. Configure FortiGate 400F (§5)
+6. Configure Ruckus SmartZone (§6)
+7. Configure MikroTik (§7)
+8. Verify in Coralogix (§8)
 
 ## 1. Prepare the key
 
